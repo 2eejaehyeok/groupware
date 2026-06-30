@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>총동아리위원회 통합업무시스템</title>
+    <!-- Tailwind CSS 및 FontAwesome 인프라 로드 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- [1] 시스템 인증 센터 (로그인 및 회원가입 인프라 정상 가동) -->
+    <div id="auth-container" class="fixed inset-0 flex items-center justify-center z-50 p-4 bg-slate-300">
+        <!-- 로그인 박스 -->
+        <div id="box-login" class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-400 p-6">
+            <h2 class="text-2xl font-bold text-center text-blue-900 mb-6">통합업무시스템</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">학번 (ID)</label>
+                    <input type="text" id="login-id" class="w-full border border-slate-300 p-2.5 rounded focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">비밀번호 (PW)</label>
+                    <input type="password" id="login-pw" class="w-full border border-slate-300 p-2.5 rounded focus:ring-2 focus:ring-blue-500">
+                </div>
+                <button onclick="handleLogin()" class="w-full bg-blue-800 text-white p-3 rounded font-bold hover:bg-blue-900 transition mt-2">포털 접속</button>
+                <div class="text-center mt-4">
+                    <span class="text-sm text-slate-600">계정이 없으신가요?</span>
+                    <button onclick="toggleAuthBox('register')" class="text-sm text-blue-600 font-bold hover:underline ml-1">회원가입 신청</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 회원가입 박스 -->
+        <div id="box-register" class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-400 p-6 hidden">
+            <h2 class="text-2xl font-bold text-center text-blue-900 mb-6">시스템 회원가입 신청</h2>
+            <div class="space-y-3">
+                <div><label class="block text-sm font-medium text-slate-700 mb-1">학번 (ID) *</label><input type="text" id="reg-id" class="w-full border border-slate-300 p-2 rounded"></div>
+                <div><label class="block text-sm font-medium text-slate-700 mb-1">비밀번호 *</label><input type="password" id="reg-pw" class="w-full border border-slate-300 p-2 rounded"></div>
+                <div><label class="block text-sm font-medium text-slate-700 mb-1">성명 *</label><input type="text" id="reg-name" class="w-full border border-slate-300 p-2 rounded"></div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">소속 부서</label>
+                    <select id="reg-dept" class="w-full border border-slate-300 p-2 rounded">
+                        <option value="운영진">운영진</option><option value="총무부">총무부</option><option value="기획부">기획부</option><option value="홍보부">홍보부</option><option value="분과">분과</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">직책</label>
+                    <select id="reg-role" onchange="checkRoleDropdown(this.value, 'reg')" class="w-full border border-slate-300 p-2 rounded">
+                        <option value="회장">회장</option><option value="부회장">부회장</option><option value="국장">국장</option><option value="부장">부장</option><option value="차장">차장</option><option value="분과장">분과장</option>
+                    </select>
+                </div>
+                <div id="reg-etc-container" class="hidden">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">세부 분과명</label>
+                    <input type="text" id="reg-role-etc" class="w-full border border-slate-300 p-2 rounded" placeholder="예: 체육분과">
+                </div>
+                <button onclick="handleRegisterSubmit()" class="w-full bg-emerald-600 text-white p-2.5 rounded font-bold hover:bg-emerald-700 transition mt-2">가입 신청</button>
+                <button onclick="toggleAuthBox('login')" class="w-full bg-slate-200 text-slate-700 p-2 rounded font-bold hover:bg-slate-300 transition">이전으로</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- [2] 메인 전산 대시보드 레이아웃 -->
+    <div id="main-dashboard-layout" class="flex flex-1 min-h-screen hidden">
+        <!-- 좌측 사이드바 네비게이션 -->
+        <nav class="w-64 bg-slate-800 text-slate-300 p-4 space-y-2 shrink-0 flex flex-col justify-between">
+            <div class="space-y-2">
+                <div class="p-2 text-white font-bold border-b border-slate-700 mb-4">
+                    <span id="user-display-name">사용자님</span> <span id="user-badge" class="bg-blue-600 text-[10px] px-1.5 py-0.5 rounded ml-1">일반</span>
+                    <div id="admin-indicator" class="text-xs text-amber-400 mt-1 hidden">[마스터 권한]</div>
+                </div>
+                <a href="#" id="nav-dashboard" onclick="navigateTo('dashboard')" class="flex items-center space-x-3 px-3 py-2 rounded hover:bg-slate-700 transition"><i class="fa-solid fa-house w-5"></i><span>대시보드 홈</span></a>
+                <a href="#" id="nav-doc-registry" onclick="navigateTo('doc-registry')" class="flex items-center space-x-3 px-3 py-2 rounded hover:bg-slate-700 transition text-slate-300"><i class="fa-solid fa-file-invoice w-5"></i><span>문서등록대장</span></a>
+                
+                <a href="#" id="nav-club-list" data-perm-menu="등록 동아리 현황" onclick="navigateTo('club-list')" class="flex items-center space-x-3 px-3 py-2 rounded hover:bg-slate-700 transition hidden"><i class="fa-solid fa-users w-5"></i><span>등록 동아리 현황</span></a>
+                <a href="#" id="nav-club-approval" data-perm-menu="신규 동아리 신청 승인" onclick="navigateTo('club-approval')" class="flex items-center space-x-3 px-3 py-2 rounded hover:bg-slate-700 transition hidden"><i class="fa-solid fa-user-plus w-5"></i><span>신규 동아리 신청 승인</span></a>
+                <a href="#" id="nav-rent-resource" data-perm-menu="동아리방/물품 대여" onclick="navigateTo('rent-resource')" class="flex items-center space-x-3 px-3 py-2 rounded hover:bg-slate-700 transition hidden"><i class="fa-solid fa-calendar-check w-5"></i><span>동아리방/물품 대여</span></a>
+                <a href="#" id="nav-budget-audit" data-perm-menu="지원금/예산 심의조회" onclick="navigateTo('budget-audit')" class="flex items-center space-x-3 px-3 py-2 rounded hover:bg-slate-700 transition hidden"><i class="fa-solid fa-wallet w-5"></i><span>지원금/예산 심의조회</span></a>
+                <a href="#" id="nav-notice-mgr" data-perm-menu="전체 공지사항 관리" onclick="navigateTo('notice-mgr')" class="flex items-center space-x-3 px-3 py-2 rounded hover:bg-slate-700 transition hidden"><i class="fa-solid fa-bullhorn w-5"></i><span>전체 공지사항 관리</span></a>
+                <a href="#" id="nav-poll-mgr" data-perm-menu="설문 및 투표 관리" onclick="navigateTo('poll-mgr')" class="flex items-center space-x-3 px-3 py-2 rounded hover:bg-slate-700 transition hidden"><i class="fa-solid fa-file-pen w-5"></i><span>설문 및 투표 관리</span></a>
+                
+                <a href="#" id="nav-admin-setting" onclick="navigateTo('admin-setting')" class="flex items-center space-x-3 px-3 py-2 rounded hover:bg-slate-700 transition text-amber-400 hidden"><i class="fa-solid fa-gear w-5"></i><span>시스템 권한 관리</span></a>
+            </div>
+            <button onclick="handleLogout()" class="w-full text-left p-2 rounded hover:bg-rose-900 text-rose-400 mb-4"><i class="fa-solid fa-sign-out-alt mr-1"></i> 로그아웃</button>
+        </nav>
+
+        <!-- 메인 콘텐츠 영역 -->
+        <main class="flex-1 p-6 overflow-y-auto">
+            <!-- 홈 대시보드 뷰 -->
+            <div id="view-dashboard" class="tab-content active space-y-6">
+                <div class="bg-gradient-to-r from-blue-800 to-indigo-900 p-6 rounded-2xl text-white shadow-md">
+                    <h3 class="text-xl font-bold">🎉 시스템 인터페이스가 완벽히 활성화되었습니다!</h3>
+                    <p class="text-sm opacity-90 mt-1">상단 및 좌측 네비게이션을 활용하여 연계 업무를 조율하세요.</p>
+                </div>
+            </div>
+
+            <!-- 문서등록대장 뷰 -->
+            <div id="view-doc-registry" class="tab-content space-y-5">
+                <div class="flex justify-between items-center border-b pb-2">
+                    <h3 class="text-xl font-bold text-slate-800 flex items-center"><i class="fa-solid fa-file-lines text-cyan-600 mr-2"></i>국립경국대학교 총동아리연합회 문서등록대장</h3>
+                    <span class="text-xs text-slate-500">내부 종합 행정 기록 보존망</span>
+                </div>
+                <!-- 문서 기록 등록 패널 -->
+                <div id="doc-register-panel" class="bg-[#f4f7f4] border border-emerald-200 p-4 rounded-xl text-xs space-y-3 shadow-sm">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-24 font-bold text-slate-700 text-right text-rose-600">문서 번호 :</span>
+                            <input type="number" id="doc-input-number" class="w-full border border-slate-300 p-1.5 bg-white rounded font-mono font-bold" placeholder="예: 1045">
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="w-24 font-bold text-slate-700 text-right">문서 제목 :</span>
+                            <input type="text" id="doc-input-title" class="w-full border border-slate-300 p-1.5 bg-white rounded" placeholder="제목 입력">
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="w-24 font-bold text-slate-700 text-right">과제 카드명 :</span>
+                            <input type="text" id="doc-input-card" class="w-full border border-slate-300 p-1.5 bg-white rounded" value="단위과정 제어관리">
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="w-24 font-bold text-slate-700 text-right">기안(접수)자 :</span>
+                            <input type="text" id="doc-input-author" class="w-full border border-slate-300 p-1.5 bg-white rounded" readonly>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                        <div class="flex items-center space-x-4">
+                            <span class="w-24 font-bold text-slate-700 text-right">업무 유형 :</span>
+                            <div class="flex space-x-3 items-center">
+                                <label class="inline-flex items-center"><input type="radio" name="doc-radio-type" value="일반" checked class="mr-1"> 일반</label>
+                                <label class="inline-flex items-center"><input type="radio" name="doc-radio-type" value="기획" class="mr-1"> 기획</label>
+                                <label class="inline-flex items-center"><input type="radio" name="doc-radio-type" value="재정" class="mr-1"> 재정</label>
+                                <label class="inline-flex items-center"><input type="radio" name="doc-radio-type" value="홍보" class="mr-1"> 홍보</label>
+                                <label class="inline-flex items-center"><input type="radio" name="doc-radio-type" value="분과" class="mr-1"> 분과</label>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="w-24 font-bold text-slate-700 text-right">처리 현황 :</span>
+                            <select id="doc-select-status" class="w-40 border border-slate-300 p-1.5 bg-white rounded font-semibold text-blue-800">
+                                <option value="접수">접수</option><option value="결재 대기">결재 대기</option><option value="결재완료">결재완료</option><option value="기안 종료">기안 종료</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex items-start space-x-2 border-t pt-2">
+                        <span class="w-24 font-bold text-slate-700 text-right pt-1 text-cyan-700">열람 권한 직책 :</span>
+                        <div class="flex-1 flex flex-wrap gap-3 bg-white p-2 border rounded">
+                            <label class="inline-flex items-center cursor-pointer font-semibold"><input type="checkbox" name="doc-check-roles" value="회장" checked class="mr-1 rounded text-cyan-600"> 회장</label>
+                            <label class="inline-flex items-center cursor-pointer font-semibold"><input type="checkbox" name="doc-check-roles" value="부회장" checked class="mr-1 rounded text-cyan-600"> 부회장</label>
+                            <label class="inline-flex items-center cursor-pointer font-semibold"><input type="checkbox" name="doc-check-roles" value="국장" checked class="mr-1 rounded text-cyan-600"> 국장</label>
+                            <label class="inline-flex items-center cursor-pointer font-semibold"><input type="checkbox" name="doc-check-roles" value="부장" checked class="mr-1 rounded text-cyan-600"> 부장</label>
+                            <label class="inline-flex items-center cursor-pointer font-semibold"><input type="checkbox" name="doc-check-roles" value="차장" checked class="mr-1 rounded text-cyan-600"> 차장</label>
+                            <label class="inline-flex items-center cursor-pointer font-semibold"><input type="checkbox" name="doc-check-roles" value="분과장" checked class="mr-1 rounded text-cyan-600"> 분과장</label>
+                        </div>
+                    </div>
+                    <div class="flex flex-col space-y-1">
+                        <div class="flex items-center"><span class="w-24 font-bold text-slate-700 text-right pr-2">문서 내용 :</span></div>
+                        <textarea id="doc-input-content" rows="3" class="w-full border border-slate-300 p-2 bg-white rounded text-xs" placeholder="상세 내용을 기록하세요."></textarea>
+                    </div>
+                    <div class="border-2 border-dashed border-slate-300 hover:border-cyan-500 bg-white p-4 rounded-lg text-center transition cursor-pointer relative" id="doc-drop-zone">
+                        <input type="file" id="doc-file-input" class="absolute inset-0 opacity-0 cursor-pointer" multiple accept=".pdf,.hwp,.xlsx,.xls,.docx,.doc,.png,.jpg">
+                        <i class="fa-solid fa-cloud-arrow-up text-2xl text-slate-400 mb-1"></i>
+                        <p class="font-bold text-slate-600">등록할 문서를 이곳에 끌어다 놓거나 클릭하여 파일을 선택하세요.</p>
+                        <div id="doc-selected-files-summary" class="mt-2 text-emerald-600 font-bold hidden"></div>
+                    </div>
+                    <div class="flex justify-end pt-1">
+                        <button onclick="submitNewDocument()" class="bg-cyan-700 hover:bg-cyan-800 text-white font-bold px-5 py-2 rounded shadow text-xs flex items-center"><i class="fa-solid fa-pen-to-square mr-1.5"></i>대장에 문서 최종 등록 및 기록</button>
+                    </div>
+                </div>
+                <!-- 행정 종합 다기능 필터 탭 -->
+                <div class="bg-slate-200 border border-slate-300 p-3 rounded-xl flex flex-wrap gap-3 items-center text-xs shadow-sm">
+                    <div class="flex items-center space-x-1.5">
+                        <span class="font-bold text-slate-700"><i class="fa-solid fa-magnifying-glass mr-1"></i>검색 대상 :</span>
+                        <select id="search-target" class="border border-slate-300 p-1.5 bg-white rounded font-medium">
+                            <option value="title">문서 제목</option>
+                            <option value="author">작성자 성명</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center space-x-1">
+                        <span class="font-bold text-slate-700">기간(일시) :</span>
+                        <input type="date" id="search-date-start" class="border p-1 bg-white rounded">
+                        <span class="text-slate-400">~</span>
+                        <input type="date" id="search-date-end" class="border p-1 bg-white rounded">
+                    </div>
+                    <div class="flex-1 min-w-[200px] flex space-x-1">
+                        <input type="text" id="search-keyword" class="flex-1 border p-1.5 bg-white rounded" placeholder="검색 키워드를 입력하세요.">
+                        <button onclick="renderDocRegistryList()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-1.5 rounded transition shadow">검색 조회</button>
+                        <button onclick="resetSearchFilters()" class="bg-slate-400 hover:bg-slate-500 text-white font-bold px-2 py-1.5 rounded transition">초기화</button>
+                    </div>
+                </div>
+                <!-- 문서 기록 보존고 테이블 -->
+                <div class="bg-white rounded-xl shadow border overflow-hidden">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead class="bg-slate-100 border-b text-slate-700 font-bold">
+                            <tr>
+                                <th class="p-3 border-r" style="width: 70px;">구분</th>
+                                <th class="p-3 border-r" style="width: 110px;">등록번호/일자</th>
+                                <th class="p-3 border-r" style="width: 140px;">과제카드(업무)</th>
+                                <th class="p-3 border-r">문서 정보 및 제목</th>
+                                <th class="p-3 border-r" style="width: 160px;">연계/첨부 원본 파일</th>
+                                <th class="p-3 border-r text-center" style="width: 90px;">처리 현황</th>
+                                <th class="p-3 border-r text-center" style="width: 80px;">등록자</th>
+                                <th class="p-3 text-center" style="width: 100px;">제어 권한</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbl-doc-registry-body" class="divide-y"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 등록 동아리 현황 탭 -->
+            <div id="view-club-list" class="tab-content space-y-4">
+                <h3 class="text-xl font-bold text-slate-800">📋 등록 동아리 현황 및 영구 명부</h3>
+                <div class="bg-white rounded-xl shadow overflow-hidden">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead class="bg-slate-50 border-b text-slate-700 font-bold">
+                            <tr>
+                                <th class="p-3 border-r">고유번호</th>
+                                <th class="p-3 border-r">분과 구분</th>
+                                <th class="p-3 border-r">동아리명</th>
+                                <th class="p-3 border-r">대표자(학번)</th>
+                                <th class="p-3 border-r">연락처</th>
+                                <th class="p-3 border-r">구성원수</th>
+                                <th class="p-3">연계 구성원 명부 파일</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbl-club-body" class="divide-y"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 신규 동아리 신청 승인 탭 -->
+            <div id="view-club-approval" class="tab-content space-y-6">
+                <div class="flex justify-between items-center border-b pb-2">
+                    <h3 class="text-xl font-bold text-slate-800 flex items-center"><i class="fa-solid fa-user-plus text-emerald-600 mr-2"></i>신규 동아리 개설 신청 심의 센터</h3>
+                    <span class="text-xs text-slate-500">분과장 기안 및 임원진(회장·부회장·국장) 합의 시스템</span>
+                </div>
+
+                <!-- 요약 인디케이터 배지 보드 (단계별 데이터 조회 필터 스위치 탑재) -->
+                <div class="grid grid-cols-4 gap-4 text-center">
+                    <div onclick="filterApprovalStage('전체')" class="bg-slate-200 p-3 rounded-xl border cursor-pointer hover:bg-slate-300 transition shadow-sm"><p class="text-xs text-slate-600 font-bold">총 접수</p><p id="cnt-app-total" class="text-xl font-extrabold text-slate-800">0건</p></div>
+                    <div onclick="filterApprovalStage('심사 대기')" class="bg-amber-50 p-3 rounded-xl border border-amber-200 cursor-pointer hover:bg-amber-100 transition shadow-sm"><p class="text-xs text-amber-700 font-bold">심사 대기</p><p id="cnt-app-wait" class="text-xl font-extrabold text-amber-600">0건</p></div>
+                    <div onclick="filterApprovalStage('보완 요청')" class="bg-blue-50 p-3 rounded-xl border border-blue-200 cursor-pointer hover:bg-blue-100 transition shadow-sm"><p class="text-xs text-blue-700 font-bold">보완 요청</p><p id="cnt-app-hold" class="text-xl font-extrabold text-blue-600">0건</p></div>
+                    <div onclick="filterApprovalStage('최종 승인')" class="bg-emerald-50 p-3 rounded-xl border border-emerald-200 cursor-pointer hover:bg-emerald-100 transition shadow-sm"><p class="text-xs text-emerald-700 font-bold">최종 승인</p><p id="cnt-app-pass" class="text-xl font-extrabold text-emerald-600">0건</p></div>
+                </div>
+
+                <!-- 분과장 전용 개설 기안 서식 -->
+                <div id="panel-new-app-form" class="bg-white border-2 border-emerald-500/20 p-5 rounded-xl text-xs space-y-4 shadow-sm hidden">
+                    <h4 class="text-sm font-bold text-emerald-800 flex items-center border-b pb-1.5"><i class="fa-solid fa-signature mr-1.5"></i> [분과장 전용] 담당 소속 분과 신규 동아리 신청서 작성</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">동아리명 *</label>
+                            <input type="text" id="app-in-name" class="w-full border p-2 rounded bg-slate-50" placeholder="동아리 이름 입력">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">담당 행정 분과 *</label>
+                            <input type="text" id="app-in-dept" class="w-full border p-2 rounded bg-slate-100 font-bold text-blue-900" readonly>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">구성원 명단 등록 (.xlsx, .txt) *</label>
+                            <div class="flex items-center space-x-1">
+                                <input type="file" id="app-in-file" class="hidden" onchange="handleAppFileChange(this)">
+                                <button onclick="document.getElementById('app-in-file').click()" class="bg-slate-600 text-white p-2 px-3 rounded font-bold hover:bg-slate-700">파일 불러오기</button>
+                                <span id="app-file-summary" class="text-[11px] text-slate-500 truncate max-w-[120px]">선택 파일 없음</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                        <p class="font-bold text-slate-700"><i class="fa-solid fa-id-card mr-1"></i> 초대 대표자 기초 내역 정보</p>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div><label class="block text-slate-500 mb-0.5">대표자 학번</label><input type="text" id="app-in-uid" class="w-full border p-1.5 bg-white rounded"></div>
+                            <div><label class="block text-slate-500 mb-0.5">대표자 성명</label><input type="text" id="app-in-uname" class="w-full border p-1.5 bg-white rounded"></div>
+                            <div><label class="block text-slate-500 mb-0.5">대표자 연락처</label><input type="text" id="app-in-uphone" class="w-full border p-1.5 bg-white rounded" placeholder="010-0000-0000"></div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="block font-bold text-slate-700">동아리 개설 목적 및 상세 설명 기입 *</label>
+                        <textarea id="app-in-desc" rows="4" class="w-full border p-2.5 bg-white rounded" placeholder="설립 배경 및 정기 활동 계획 요약을 구체적으로 기술하세요."></textarea>
+                    </div>
+
+                    <div class="flex justify-end pt-1">
+                        <button onclick="submitNewApprovalRequest()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold p-2.5 px-6 rounded shadow text-xs flex items-center"><i class="fa-solid fa-cloud-arrow-up mr-1.5"></i> 심의 보드로 신청서 정식 송부</button>
+                    </div>
+                </div>
+
+                <!-- 심의 내역 리스트 데이터 테이블 -->
+                <div class="bg-white rounded-xl shadow border overflow-hidden">
+                    <div class="bg-slate-50 p-3 border-b font-bold text-xs text-slate-700 flex justify-between items-center">
+                        <span id="txt-current-stage-title">📋 신규 개설 서류 의결 및 심의 대기 목록 (전체 조회)</span>
+                        <span class="text-[10px] text-slate-400">* 동아리 이름을 클릭하면 상세 내용 및 모든 평정 기록을 볼 수 있습니다.</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead class="bg-slate-100 border-b text-slate-700 font-bold">
+                                <tr>
+                                    <th class="p-3 border-r" style="width: 90px;">소속분과</th>
+                                    <th class="p-3 border-r" style="width: 150px;">신청 동아리명</th>
+                                    <th class="p-3 border-r" style="width: 160px;">대표자(학번/연락처)</th>
+                                    <th class="p-3 border-r" style="width: 130px;">구성원 명부</th>
+                                    <th class="p-3 border-r text-center" style="width: 90px;">심사 현황</th>
+                                    <th class="p-3 text-center" style="width: 190px;">심의 의결 제어판</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbl-approval-master-body" class="divide-y"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 타 탭 보존 홀더 데이터 피딩 영역 -->
+            <div id="view-rent-resource" class="tab-content space-y-4"><h3 class="text-xl font-bold text-slate-800">📦 동아리방/물품 대여 관리</h3></div>
+            <div id="view-budget-audit" class="tab-content space-y-4"><h3 class="text-xl font-bold text-slate-800">💰 지원금 및 예산 심의조회</h3></div>
+            <div id="view-notice-mgr" class="tab-content space-y-4"><h3 class="text-xl font-bold text-slate-800">📢 전체 공지사항 관리</h3></div>
+            <div id="view-poll-mgr" class="tab-content space-y-4"><h3 class="text-xl font-bold text-slate-800">📊 설문 및 투표 관리</h3></div>
+
+            <!-- 시스템 권한 관리 뷰 -->
+            <div id="view-admin-setting" class="tab-content space-y-6">
+                <h3 class="text-xl font-bold text-slate-800">⚙️ 전산 권한 및 매트릭스 설정</h3>
+                <div class="bg-white p-4 rounded-xl shadow border">
+                    <h4 class="font-bold mb-2 text-sm text-slate-700">👤 현재 가입된 내부 회원 리스트</h4>
+                    <table class="w-full text-xs text-left border-collapse border">
+                        <thead class="bg-slate-50"><tr><th class="p-2 border">ID(학번)</th><th class="p-2 border">이름</th><th class="p-2 border">부서</th><th class="p-2 border">직책</th><th class="p-2 border">비고</th><th class="p-2 border text-center" style="width: 120px;">제어</th></tr></thead>
+                        <tbody id="tbl-user-master-body"></tbody>
+                    </table>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><h4 class="font-bold text-xs text-slate-600 mb-2">🏢 부서별 상세 접근 인가 세팅</h4><div id="matrix-dept-box" class="space-y-3 text-xs"></div></div>
+                    <div><h4 class="font-bold text-xs text-slate-600 mb-2">👑 직책별 상세 접근 인가 세팅</h4><div id="matrix-role-box" class="space-y-3 text-xs"></div></div>
+                </div>
+                <button onclick="savePermissionMatrix()" class="bg-blue-800 hover:bg-blue-900 text-white font-bold p-2.5 rounded text-sm w-full shadow transition">매트릭스 세팅 세션 동기화 커밋</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- [공용 팝업 1] 문서 상세 정보 조회 모달 -->
+    <div id="doc-viewer-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-xl max-w-lg w-full shadow-2xl overflow-hidden border border-slate-300">
+            <div class="bg-slate-800 p-3.5 text-white font-bold text-xs flex justify-between items-center"><span id="modal-doc-id-title">📑 문서 상세 정보 조회</span><button onclick="closeDocViewer()" class="text-slate-200 hover:text-white text-lg font-mono">&times;</button></div>
+            <div class="p-4 space-y-3 text-xs" id="modal-doc-body-content"></div>
+            <div class="bg-slate-50 p-2.5 border-t flex justify-end"><button onclick="closeDocViewer()" class="bg-slate-600 text-white px-4 py-1.5 rounded font-bold">닫기</button></div>
+        </div>
+    </div>
+
+    <!-- [신규 전산 연동] 신규 동아리 신청 건 상세내역 및 누적 평정 기록 보기 모달 -->
+    <div id="app-viewer-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-xl max-w-2xl w-full shadow-2xl overflow-hidden border border-slate-300">
+            <div class="bg-emerald-800 p-3.5 text-white font-bold text-xs flex justify-between items-center">
+                <span>🔍 신규 동아리 개설 신청 상세 및 전사 평정록</span>
+                <button onclick="closeAppViewer()" class="text-slate-200 hover:text-white text-lg font-mono">&times;</button>
+            </div>
+            <div class="p-5 space-y-4 text-xs max-h-[75vh] overflow-y-auto">
+                <div class="bg-slate-50 border p-3 rounded-xl space-y-2">
+                    <div class="flex justify-between border-b pb-1.5"><span id="view-app-title" class="text-sm font-bold text-slate-900">동아리명</span><span id="view-app-dept" class="bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded text-[10px]">분과</span></div>
+                    <div class="grid grid-cols-2 gap-2 text-slate-600">
+                        <div><span class="font-bold">대표자:</span> <span id="view-app-leader"></span></div>
+                        <div><span class="font-bold">연락처:</span> <span id="view-app-phone"></span></div>
+                        <div class="col-span-2"><span class="font-bold">명부 파일:</span> <span id="view-app-file" class="text-blue-700 underline font-mono cursor-pointer"></span></div>
+                    </div>
+                    <div class="border-t pt-2 mt-1"><span class="font-bold text-slate-800 block mb-1">📋 개설 목적 및 상세 설명 :</span><div id="view-app-desc" class="bg-white p-2.5 border rounded leading-relaxed text-slate-700 whitespace-pre-wrap"></div></div>
+                </div>
+
+                <!-- 실시간 누적 평정 기록 타임라인 존 -->
+                <div class="space-y-1.5">
+                    <span class="font-bold text-blue-900 flex items-center text-[11px]"><i class="fa-solid fa-comments mr-1"></i> 심사 평정 히스토리 요약 기록</span>
+                    <div class="bg-slate-50 border p-3 rounded-xl space-y-2 divide-y divide-slate-200" id="view-app-rating-timeline">
+                        <!-- 평정 기록 피딩 구역 -->
+                    </div>
+                </div>
+            </div>
+            <div class="bg-slate-50 p-2.5 border-t flex justify-between items-center">
+                <!-- 분과장 본인 소유 신청건일 때 동적으로 '삭제' 단추 인젝션될 구역 -->
+                <div id="app-viewer-owner-action-zone"></div>
+                <button onclick="closeAppViewer()" class="bg-slate-600 text-white px-4 py-1.5 rounded font-bold text-xs ml-auto">확인 완료</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- [신규 전산 연동] 기안 취소 확인 전산 팝업 모달 -->
+    <div id="app-delete-confirm-modal" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-xl max-w-sm w-full shadow-2xl overflow-hidden border-2 border-rose-600">
+            <div class="bg-rose-900 p-3 text-white font-bold text-xs flex items-center"><i class="fa-solid fa-triangle-exclamation text-amber-400 mr-2 text-sm"></i> 개설 기안 취소 최종 보안 확인</div>
+            <div class="p-5 text-center bg-rose-50/50"><p class="text-sm font-extrabold text-rose-900">삭제할 경우, 해당 심의는 중단됩니다.</p><p class="text-[11px] text-slate-500 mt-1">대장에서 완전 파기되어 복구할 수 없습니다.</p></div>
+            <div class="bg-slate-100 p-3 border-t flex justify-center space-x-2">
+                <button id="btn-app-delete-allow" class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-6 py-1.5 rounded text-xs shadow">승인</button>
+                <button onclick="closeDeleteConfirmModal()" class="bg-slate-400 hover:bg-slate-500 text-white px-6 py-1.5 rounded text-xs">거절</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 파일 다운로드 허용/거절 팝업 모달 -->
+    <div id="doc-download-modal" class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-xl max-w-sm w-full shadow-2xl overflow-hidden border border-amber-300">
+            <div class="bg-slate-900 p-3 text-white font-bold text-xs flex items-center"><i class="fa-solid fa-circle-question text-amber-400 mr-1.5 text-sm"></i> 파일 다운로드 보안 확인</div>
+            <div class="p-5 text-center space-y-2"><p class="text-sm font-bold text-slate-800" id="download-prompt-filename">파일을 다운하시겠습니까?</p></div>
+            <div class="bg-slate-50 p-3 border-t flex justify-center space-x-2"><button id="btn-download-allow" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-1.5 rounded text-xs shadow">허용</button><button onclick="closeDownloadModal()" class="bg-slate-400 text-white px-5 py-1.5 rounded text-xs">거절</button></div>
+        </div>
+    </div>
+
+    <!-- 비즈니스 엔진 핵심 로직 스크립트 -->
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('auth-container').classList.remove('hidden');
+            document.getElementById('main-dashboard-layout').classList.add('hidden');
+            
+            document.getElementById('doc-file-input').addEventListener('change', (e) => {
+                if(e.target.files.length > 0) {
+                    document.getElementById('doc-selected-files-summary').innerText = `📎 첨부 대기 파일: ${e.target.files[0].name} (총 ${e.target.files.length}개 연계됨)`;
+                    document.getElementById('doc-selected-files-summary').classList.remove('hidden');
+                }
+            });
+            renderDocRegistryList();
+        });
+
+        // 사용자 원부 세션
+        let userDB = [
+            { id: 'admin', pw: '1234', name: '이재혁', dept: '운영진', role: '회장', roleEtc: '', isMaster: true },
+            { id: '20220515', pw: '1234', name: '김체육', dept: '분과', role: '분과장', roleEtc: '체육분과', isMaster: false },
+            { id: '20220101', pw: '1234', name: '박기획', dept: '기획부', role: '국장', roleEtc: '', isMaster: false }
+        ];
+
+        // 대장 보존 스토리지
+        let documentDB = [
+            { id: 1042, type: '재정', title: '2026년도 상반기 활동보조금 지출합의서', card: '보조금 정산의결', files: ['활동보조금_내역서.xlsx', '영수증증빙자료.pdf'], status: '결재완료', content: '2026학년도 전반기 지출 결의 원부 서류입니다.', author: '개발자', uid: 'admin', date: '2026-06-26', allowedRoles: ['회장', '부회장', '국장', '부장', '차장', '분과장'] }
+        ];
+
+        // 기존 등록 동아리 정식 명부 데이터베이스
+        let clubDB = [
+            { id: 1, category: '공연예술', name: '소리방울 (통기타)', leader: '김지훈', phone: '010-4912-3321', room: '학생회관 301호', members: 25, filename: '창립명부_소리방울.xlsx' }
+        ];
+
+        // 신규 개설 의결 신청 및 다중 직책 평정 누적 기록 아카이브 구조 (기안자 학번 uid 보존 필드 추가)
+        let approvalDB = [
+            { 
+                id: 101, 
+                dept: '체육분과', 
+                name: '스매시 (배드민턴)', 
+                leaderId: '20241234', 
+                leaderName: '최민우', 
+                leaderPhone: '010-5555-6666', 
+                desc: '정기적인 배드민턴 연습 및 교내 대회 개최를 목적으로 설립하고자 합니다.', 
+                filename: '스매시_명단원부.xlsx', 
+                status: '심사 대기', 
+                uid: '20220515', 
+                ratings: [
+                    { author: '김체육 (분과장)', role: '분과장', text: '체육분과 내 개설 필요성 확인 및 서류 적격 기안 통과 조치함.', date: '2026-06-27' }
+                ]
+            }
+        ];
+
+        const allMenuList = ['등록 동아리 현황', '신규 동아리 신청 승인', '동아리방/물품 대여', '지원금/예산 심의조회', '전체 공지사항 관리', '설문 및 투표 관리'];
+        let deptPermissions = { '운영진': [...allMenuList], '총무부': ['등록 동아리 현황'], '기획부': [...allMenuList], '홍보부': ['전체 공지사항 관리'], '분과': ['등록 동아리 현황', '신규 동아리 신청 승인'] };
+        
+        let rolePermissions = { 
+            '회장': [...allMenuList], 
+            '부회장': [...allMenuList], 
+            '국장': [...allMenuList], 
+            '부장': ['등록 동아리 현황'], 
+            '차장': ['등록 동아리 현황'], 
+            '분과장': ['등록 동아리 현황', '신규 동아리 신청 승인'] 
+        };
+        
+        let deptDocActions = { '운영진': ['접속', '작성', '열람', '다운로드'], '총무부': ['접속', '열람'], '기획부': ['접속', '작성', '열람', '다운로드'], '홍보부': ['접속', '열람'], '분과': ['접속', '작성', '열람'] };
+        let roleDocActions = { '회장': ['접속', '작성', '열람', '다운로드'], '부회장': ['접속', '작성', '열람', '다운로드'], '국장': ['접속', '작성', '열람', '다운로드'], '부장': ['접속', '열람'], '차장': ['접속', '열람'], '분과장': ['접속', '작성', '열람'] };
+
+        let currentUser = null;
+        let activeDownloadTargetFile = "";
+        let currentFilterStage = "전체"; // 실시간 단계별 필터링 전역 스테이트
+        let pendingDeleteAppId = null; // 취소 보류 대기 식별 정보
+
+        function toggleAuthBox(mode) {
+            if(mode === 'register') {
+                document.getElementById('box-login').classList.add('hidden');
+                document.getElementById('box-register').classList.remove('hidden');
+            } else {
+                document.getElementById('box-login').classList.remove('hidden');
+                document.getElementById('box-register').classList.add('hidden');
+            }
+        }
+
+        function checkRoleDropdown(val, prefix) {
+            const container = document.getElementById(prefix + '-etc-container');
+            if(val === '분과장') container.classList.remove('hidden');
+            else container.classList.add('hidden');
+        }
+
+        function handleRegisterSubmit() {
+            const id = document.getElementById('reg-id').value.trim();
+            const pw = document.getElementById('reg-pw').value.trim();
+            const name = document.getElementById('reg-name').value.trim();
+            const dept = document.getElementById('reg-dept').value;
+            const role = document.getElementById('reg-role').value;
+            const roleEtc = document.getElementById('reg-role-etc').value.trim();
+
+            if(!id || !pw || !name) { alert('⚠️ 필수 항목(*)을 채워주세요.'); return; }
+            if(userDB.some(u => u.id === id)) { alert('⚠️ 이미 등록된 학번입니다.'); return; }
+
+            userDB.push({ id, pw, name, dept, role, roleEtc, isMaster: false });
+            alert('🎉 가입 완료! 등록한 학번으로 로그인 해주세요.');
+            toggleAuthBox('login');
+        }
+
+        function handleLogin() {
+            const id = document.getElementById('login-id').value.trim();
+            const pw = document.getElementById('login-pw').value.trim();
+            const user = userDB.find(u => u.id === id && u.pw === pw);
+
+            if(!user) { alert('⚠️ 학번 또는 비밀번호가 일치하지 않습니다.'); return; }
+            currentUser = user;
+            
+            document.getElementById('auth-container').classList.add('hidden');
+            document.getElementById('main-dashboard-layout').classList.remove('hidden');
+            document.getElementById('user-display-name').innerText = user.name + '님';
+            document.getElementById('user-badge').innerText = user.role;
+
+            if(user.isMaster || user.dept === '운영진') document.getElementById('admin-indicator').classList.remove('hidden');
+            else document.getElementById('admin-indicator').classList.add('hidden');
+
+            const adminMenuEl = document.getElementById('nav-admin-setting');
+            if(user.id === 'admin') adminMenuEl.classList.remove('hidden');
+            else adminMenuEl.classList.add('hidden');
+
+            document.getElementById('doc-input-author').value = user.name;
+            
+            applyDocWriteUIVisibility();
+            applyMenuPermissions();
+            navigateTo('dashboard');
+        }
+
+        function handleLogout() {
+            currentUser = null;
+            document.getElementById('login-id').value = '';
+            document.getElementById('login-pw').value = '';
+            document.getElementById('main-dashboard-layout').classList.add('hidden');
+            document.getElementById('auth-container').classList.remove('hidden');
+        }
+
+        function applyMenuPermissions() {
+            if (!currentUser) return;
+            if(currentUser.isMaster) { document.querySelectorAll('[data-perm-menu]').forEach(el => el.classList.remove('hidden')); return; }
+            const allowedDept = deptPermissions[currentUser.dept] || [];
+            const allowedRole = rolePermissions[currentUser.role] || [];
+            document.querySelectorAll('[data-perm-menu]').forEach(el => {
+                const menuName = el.getAttribute('data-perm-menu');
+                if(allowedDept.includes(menuName) || allowedRole.includes(menuName)) el.classList.remove('hidden');
+                else el.classList.add('hidden');
+            });
+        }
+
+        function checkDocActionPermission(action) {
+            if(!currentUser) return false;
+            if(currentUser.id === 'admin' || currentUser.isMaster) return true;
+            const deptActions = deptDocActions[currentUser.dept] || [];
+            const roleActions = roleDocActions[currentUser.role] || [];
+            return deptActions.includes(action) || roleActions.includes(action);
+        }
+
+        function applyDocWriteUIVisibility() {
+            const panel = document.getElementById('doc-register-panel');
+            if(!panel) return;
+            if(checkDocActionPermission('작성')) panel.classList.remove('hidden');
+            else panel.classList.add('hidden');
+        }
+
+        function navigateTo(targetView) {
+            if(targetView === 'doc-registry' && !checkDocActionPermission('접속')) {
+                alert('🛡️ [접근 차단] 귀하의 소속 부서 또는 직책은 문서등록대장 접속 권한이 해제되어 있습니다.');
+                return;
+            }
+
+            if(targetView === 'club-approval' && currentUser && !['회장', '부회장', '국장', '분과장'].includes(currentUser.role)) {
+                alert('🛡️ [열람 금지] 귀하의 직책 권한으로는 신규 동아리 신청 승인 내역에 접근할 수 없습니다.');
+                return;
+            }
+
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            const viewEl = document.getElementById('view-' + targetView);
+            if(viewEl) viewEl.classList.add('active');
+
+            document.querySelectorAll('nav a').forEach(a => {
+                a.classList.remove('bg-slate-700', 'text-white', 'font-medium');
+                a.classList.add('text-slate-300');
+            });
+            const activeNav = document.getElementById('nav-' + targetView);
+            if(activeNav) {
+                activeNav.classList.add('bg-slate-700', 'text-white', 'font-medium');
+                activeNav.classList.remove('text-slate-300');
+            }
+
+            if(targetView === 'doc-registry') {
+                applyDocWriteUIVisibility();
+                renderDocRegistryList();
+            }
+            if(targetView === 'club-list') renderClubList();
+            if(targetView === 'club-approval') {
+                currentFilterStage = "전체"; // 다른 메뉴 이동 후 복귀 시 전체 조회 상태 초기화
+                renderApprovalDashboard();
+            }
+            if(targetView === 'admin-setting') renderAdminSetting();
+        }
+
+        function resetSearchFilters() {
+            document.getElementById('search-date-start').value = "";
+            document.getElementById('search-date-end').value = "";
+            document.getElementById('search-keyword').value = "";
+            renderDocRegistryList();
+        }
+
+        function submitNewDocument() {
+            if(!checkDocActionPermission('작성')) { alert('🛡️ 문서 등록 작성 권한이 제한되어 있습니다.'); return; }
+            
+            const customNumStr = document.getElementById('doc-input-number').value.trim();
+            const title = document.getElementById('doc-input-title').value.trim();
+            const card = document.getElementById('doc-input-card').value.trim();
+            const author = document.getElementById('doc-input-author').value;
+            const content = document.getElementById('doc-input-content').value.trim();
+            const type = document.querySelector('input[name="doc-radio-type"]:checked').value;
+            const status = document.getElementById('doc-select-status').value;
+            const fileInput = document.getElementById('doc-file-input');
+
+            if(!customNumStr || !title) { alert('⚠️ 문서 번호와 제목은 필수입력입니다.'); return; }
+            const nextId = parseInt(customNumStr);
+            if(documentDB.some(d => d.id === nextId)) { alert('⚠️ 이미 존재하는 문서 번호입니다.'); return; }
+
+            let selectedRoles = [];
+            document.querySelectorAll('input[name="doc-check-roles"]:checked').forEach(chk => { selectedRoles.push(chk.value); });
+            if(selectedRoles.length === 0) { alert('⚠️ 최소 하나 이상의 직책에 열람 권한을 인가해야 합니다.'); return; }
+
+            let uploadedFileNames = ['첨부문서원본.pdf'];
+            if(fileInput.files.length > 0) {
+                uploadedFileNames = [];
+                for(let i=0; i<fileInput.files.length; i++) { uploadedFileNames.push(fileInput.files[i].name); }
+            }
+
+            documentDB.unshift({
+                id: nextId, type: type, title: title, card: card, files: uploadedFileNames,
+                status: status, content: content || '내용 요약 없음', author: author, uid: currentUser.id, date: '2026-06-27',
+                allowedRoles: selectedRoles
+            });
+
+            alert(`🎉 문서번호 제 ${nextId}호로 귀속 보존되었습니다.`);
+            document.getElementById('doc-input-number').value = '';
+            document.getElementById('doc-input-title').value = '';
+            document.getElementById('doc-input-content').value = '';
+            document.getElementById('doc-file-input').value = '';
+            document.getElementById('doc-selected-files-summary').classList.add('hidden');
+            renderDocRegistryList();
+        }
+
+        function renderDocRegistryList() {
+            const tbody = document.getElementById('tbl-doc-registry-body');
+            if(!tbody) return;
+
+            const targetSelect = document.getElementById('search-target').value;
+            const dateStart = document.getElementById('search-date-start').value;
+            const dateEnd = document.getElementById('search-date-end').value;
+            const keyword = document.getElementById('search-keyword').value.trim().toLowerCase();
+
+            let filteredDB = documentDB.filter(doc => {
+                if(keyword) {
+                    if(targetSelect === 'title' && !doc.title.toLowerCase().includes(keyword)) return false;
+                    if(targetSelect === 'author' && !doc.author.toLowerCase().includes(keyword)) return false;
+                }
+                if(dateStart && doc.date < dateStart) return false;
+                if(dateEnd && doc.date > dateEnd) return false;
+                return true;
+            });
+
+            tbody.innerHTML = filteredDB.map(doc => {
+                const fileBadges = doc.files.map(f => {
+                    return `<span onclick="triggerDownloadModal('${f}')" class="bg-slate-100 text-blue-700 px-1.5 py-0.5 rounded text-[10px] block truncate my-0.5 font-semibold hover:bg-blue-100 hover:underline cursor-pointer"><i class="fa-solid fa-download mr-1 text-slate-500"></i>${f}</span>`;
+                }).join('');
+
+                let controlButtons = `<span class="text-slate-400 text-[10px]">권한 없음</span>`;
+                if(currentUser && doc.uid === currentUser.id) {
+                    controlButtons = `
+                        <button onclick="deleteDocument(${doc.id})" class="bg-rose-600 hover:bg-rose-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold">삭제</button>
+                    `;
+                }
+
+                let statusColor = 'bg-gray-100 text-gray-800';
+                if(doc.status === '접수') statusColor = 'bg-orange-100 text-orange-800';
+                if(doc.status === '결재 대기') statusColor = 'bg-amber-100 text-amber-800';
+                if(doc.status === '결재완료') statusColor = 'bg-emerald-100 text-emerald-800';
+
+                return `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="p-3 border-r text-center font-bold text-slate-600"><span class="bg-gray-200 px-1.5 py-0.5 rounded">${doc.type}</span></td>
+                        <td class="p-3 border-r text-slate-500 font-mono">제 ${doc.id}호<br><span class="text-[10px] text-slate-400">${doc.date}</span></td>
+                        <td class="p-3 border-r font-medium text-slate-700">${doc.card}</td>
+                        <td class="p-3 border-r text-blue-900 font-bold hover:underline cursor-pointer" onclick="openDocViewer(${doc.id})">${doc.title}</td>
+                        <td class="p-2 border-r">${fileBadges}</td>
+                        <td class="p-3 border-r text-center font-bold"><span class="${statusColor} px-2 py-0.5 rounded text-[10px]">${doc.status}</span></td>
+                        <td class="p-3 border-r text-center text-slate-600 font-semibold">${doc.author}</td>
+                        <td class="p-2 text-center space-x-1">${controlButtons}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function triggerDownloadModal(filename) {
+            activeDownloadTargetFile = filename;
+            document.getElementById('download-prompt-filename').innerText = `"${filename}"\n파일을 다운하시겠습니까?`;
+            document.getElementById('btn-download-allow').onclick = executeActualFileDownload;
+            document.getElementById('doc-download-modal').classList.remove('hidden');
+        }
+        function closeDownloadModal() { document.getElementById('doc-download-modal').classList.add('hidden'); }
+        function executeActualFileDownload() {
+            if(!activeDownloadTargetFile) return;
+            const blob = new Blob([`국립경국대학교 연합회 다운로드 시스템\n파일명: ${activeDownloadTargetFile}`], { type: 'text/plain;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob); link.download = activeDownloadTargetFile;
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            closeDownloadModal();
+        }
+
+        function openDocViewer(docId) {
+            const doc = documentDB.find(d => d.id === docId); if(!doc) return;
+            document.getElementById('modal-doc-id-title').innerText = `📑 보존 대장 [제 ${doc.id}호] 원부`;
+            document.getElementById('modal-doc-body-content').innerHTML = `
+                <div class="space-y-2 border p-3 rounded bg-slate-50">
+                    <div><span class="font-bold text-slate-500">■ 문서 제목 :</span> <span class="font-bold text-slate-900">${doc.title}</span></div>
+                    <div class="grid grid-cols-2 gap-2 border-t pt-2 mt-2">
+                        <div><span class="font-bold text-slate-500">문서 번호 :</span> 제 ${doc.id}호</div>
+                        <div><span class="font-bold text-slate-500">과제 카드 :</span> ${doc.card}</div>
+                        <div><span class="font-bold text-slate-500">업무 유형 :</span> ${doc.type}</div>
+                        <div><span class="font-bold text-slate-500">기안 주체 :</span> ${doc.author}</div>
+                    </div>
+                    <div class="border-t pt-2"><span class="font-bold text-slate-600 block mb-1">📋 문서 내용 :</span><div class="bg-white p-2 border rounded whitespace-pre-wrap">${doc.content}</div></div>
+                </div>
+            `;
+            document.getElementById('doc-viewer-modal').classList.remove('hidden');
+        }
+        function closeDocViewer() { document.getElementById('doc-viewer-modal').classList.add('hidden'); }
+        function deleteDocument(docId) { if(confirm(`제 ${docId}호 문서를 보존고에서 파기하시겠습니까?`)) { documentDB = documentDB.filter(d => d.id !== docId); renderDocRegistryList(); } }
+
+        function renderClubList() {
+            document.getElementById('tbl-club-body').innerHTML = clubDB.map(c => `
+                <tr class="hover:bg-slate-50">
+                    <td class="p-3 border-r font-mono text-slate-500">${c.id}</td>
+                    <td class="p-3 border-r font-bold text-slate-600">${c.category}</td>
+                    <td class="p-3 border-r font-extrabold text-[#0A2540]">${c.name}</td>
+                    <td class="p-3 border-r">${c.leader}</td>
+                    <td class="p-3 border-r font-mono">${c.phone}</td>
+                    <td class="p-3 border-r font-bold">${c.members}명</td>
+                    <td class="p-2"><span class="text-blue-700 underline cursor-pointer font-semibold" onclick="triggerDownloadModal('${c.filename || '명부원부.xlsx'}')"><i class="fa-solid fa-file-excel mr-1 text-emerald-600"></i>${c.filename || '명부원부.xlsx'}</span></td>
+                </tr>
+            `).join('');
+        }
+
+        function handleAppFileChange(input) {
+            if(input.files.length > 0) {
+                document.getElementById('app-file-summary').innerText = input.files[0].name;
+            }
+        }
+
+        // [신규 기능] 상단 인디케이터 배지 필터 세션 스위칭 장치
+        function filterApprovalStage(stage) {
+            currentFilterStage = stage;
+            document.getElementById('txt-current-stage-title').innerText = `📋 신규 개설 서류 의결 및 심의 대기 목록 (${stage} 필터링 적용 중)`;
+            renderApprovalDashboard();
+        }
+
+        function renderApprovalDashboard() {
+            if(!currentUser) return;
+
+            // 1. 인디케이터 상단 실시간 수치 마운트 유지
+            document.getElementById('cnt-app-total').innerText = approvalDB.length + '건';
+            document.getElementById('cnt-app-wait').innerText = approvalDB.filter(a => a.status === '심사 대기').length + '건';
+            document.getElementById('cnt-app-hold').innerText = approvalDB.filter(a => a.status === '보완 요청').length + '건';
+            document.getElementById('cnt-app-pass').innerText = approvalDB.filter(a => a.status === '최종 승인').length + '건';
+
+            const formPanel = document.getElementById('panel-new-app-form');
+            if(currentUser.role === '분과장') {
+                formPanel.classList.remove('hidden');
+                document.getElementById('app-in-dept').value = currentUser.roleEtc || '미지정 분과';
+                document.getElementById('app-in-uid').value = currentUser.id;
+                document.getElementById('app-in-uname').value = currentUser.name;
+            } else {
+                formPanel.classList.add('hidden');
+            }
+
+            // [신규 기능 반영] 선택한 전역 스테이트 필터값(stage)에 맞춰 동적 쿼리 분기 처리
+            let displayedDB = approvalDB;
+            if(currentFilterStage !== "전체") {
+                displayedDB = approvalDB.filter(a => a.status === currentFilterStage);
+            }
+
+            const tbody = document.getElementById('tbl-approval-master-body');
+            if(displayedDB.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400 font-bold">[${currentFilterStage}] 단계에 해당하는 신규 신청 내역이 전산망에 존재하지 않습니다.</td></tr>`;
+                return;
+            }
+
+            const isTopExecutive = ['회장', '부회장'].includes(currentUser.role);
+            const isManager = ['국장'].includes(currentUser.role);
+
+            tbody.innerHTML = displayedDB.map(app => {
+                let badgeColor = 'bg-slate-100 text-slate-700';
+                if(app.status === '심사 대기') badgeColor = 'bg-amber-100 text-amber-800';
+                if(app.status === '보완 요청') badgeColor = 'bg-blue-100 text-blue-800';
+                if(app.status === '최종 승인') badgeColor = 'bg-emerald-100 text-emerald-800';
+                if(app.status === '신청 반려') badgeColor = 'bg-rose-100 text-rose-800';
+
+                let actionPanel = `<span class="text-slate-400 italic text-[11px]">의결 심사 진행 중</span>`;
+                
+                if (app.status === '최종 승인') {
+                    actionPanel = `<span class="text-emerald-600 font-bold"><i class="fa-solid fa-circle-check"></i> 대장 등재 완료</span>`;
+                } else if (app.status === '신청 반려') {
+                    actionPanel = `<span class="text-rose-600 font-bold"><i class="fa-solid fa-circle-xmark"></i> 반려 기각됨</span>`;
+                } else {
+                    if(isTopExecutive) {
+                        actionPanel = `
+                            <div class="flex flex-col space-y-1">
+                                <div class="flex space-x-1 justify-center">
+                                    <button onclick="processApprovalAction(${app.id}, '최종 승인')" class="bg-emerald-600 text-white px-2 py-0.5 rounded font-bold hover:bg-emerald-700 text-[11px]">승인</button>
+                                    <button onclick="processApprovalAction(${app.id}, '보완 요청')" class="bg-blue-600 text-white px-2 py-0.5 rounded font-bold hover:bg-blue-700 text-[11px]">보완</button>
+                                    <button onclick="processApprovalAction(${app.id}, '신청 반려')" class="bg-rose-600 text-white px-2 py-0.5 rounded font-bold hover:bg-rose-700 text-[11px]">반려</button>
+                                </div>
+                                <button onclick="insertManagerRating(${app.id})" class="bg-slate-700 text-white px-2 py-0.5 rounded text-[10px] hover:bg-slate-800">✍️ 평정 입력</button>
+                            </div>
+                        `;
+                    } else if(isManager) {
+                        actionPanel = `
+                            <div class="text-center">
+                                <button onclick="insertManagerRating(${app.id})" class="bg-slate-700 hover:bg-slate-800 text-white px-3 py-1 rounded font-bold text-[11px] shadow-sm"><i class="fa-solid fa-pen-clip mr-1"></i> 평정 입력</button>
+                            </div>
+                        `;
+                    }
+                }
+
+                return `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="p-3 border-r font-bold text-slate-600 text-center">${app.dept}</td>
+                        <td class="p-3 border-r font-extrabold text-blue-900 cursor-pointer hover:underline hover:text-blue-700" onclick="openAppViewer(${app.id})">
+                            <i class="fa-solid fa-folder-open text-slate-400 mr-1 text-[11px]"></i>${app.name}
+                        </td>
+                        <td class="p-3 border-r font-mono">${app.leaderName}<br><span class="text-[10px] text-slate-400">${app.leaderId} / ${app.leaderPhone}</span></td>
+                        <td class="p-3 border-r text-center">
+                            <span onclick="triggerDownloadModal('${app.filename}')" class="text-blue-700 underline font-bold cursor-pointer block truncate"><i class="fa-solid fa-file-excel text-emerald-600 mr-1"></i>${app.filename}</span>
+                        </td>
+                        <td class="p-3 border-r text-center font-bold"><span class="${badgeColor} px-2 py-0.5 rounded text-[10px]">${app.status}</span></td>
+                        <td class="p-2 text-center">${actionPanel}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function submitNewApprovalRequest() {
+            const name = document.getElementById('app-in-name').value.trim();
+            const dept = document.getElementById('app-in-dept').value;
+            const fileInput = document.getElementById('app-in-file');
+            const leaderId = document.getElementById('app-in-uid').value.trim();
+            const leaderName = document.getElementById('app-in-uname').value.trim();
+            const leaderPhone = document.getElementById('app-in-uphone').value.trim();
+            const desc = document.getElementById('app-in-desc').value.trim();
+
+            if(!name || !leaderId || !leaderName || !leaderPhone || !desc) {
+                alert('⚠️ 동아리명, 대표자 정보, 명부 파일, 동아리 설명은 누락할 수 없는 필수 기입 항목입니다.');
+                return;
+            }
+
+            let filename = "신규개설_구성원명단.xlsx";
+            if(fileInput.files.length > 0) filename = fileInput.files[0].name;
+
+            const nextId = approvalDB.length > 0 ? Math.max(...approvalDB.map(a => a.id)) + 1 : 101;
+
+            approvalDB.push({
+                id: nextId, dept: dept, name: name, leaderId: leaderId, leaderName: leaderName, leaderPhone: leaderPhone,
+                desc: desc, filename: filename, status: '심사 대기', uid: currentUser.id, ratings: [
+                    { author: `${currentUser.name} (${currentUser.role})`, role: currentUser.role, text: '소속분과장 정식 추천 서류 기안 발의 접수함.', date: '2026-06-29' }
+                ]
+            });
+
+            alert(`🎉 신규 동아리 [${name}] 개설 심의 정식 접수가 완료되었습니다.`);
+            document.getElementById('app-in-name').value = '';
+            document.getElementById('app-in-desc').value = '';
+            document.getElementById('app-in-file').value = '';
+            document.getElementById('app-file-summary').innerText = '선택 파일 없음';
+            renderApprovalDashboard();
+        }
+
+        function insertManagerRating(appId) {
+            const app = approvalDB.find(a => a.id === appId); if(!app) return;
+            const ratingText = prompt(`📋 [${app.name}] 신청건에 할당할 평정 심의 의견을 입력해 주세요.`);
+            if(ratingText === null) return;
+            if(!ratingText.trim()) { alert('⚠️ 평정 내용이 공백이므로 기록이 반영되지 않았습니다.'); return; }
+
+            if(!app.ratings) app.ratings = [];
+            app.ratings.push({ author: `${currentUser.name} (${currentUser.role})`, role: currentUser.role, text: ratingText.trim(), date: '2026-06-29' });
+            alert('✨ 심의 평정 내역이 등재되었습니다.');
+            renderApprovalDashboard();
+        }
+
+        function processApprovalAction(appId, nextStatus) {
+            const app = approvalDB.find(a => a.id === appId); if(!app) return;
+            const auditorComment = prompt(`🗳️ 최종 결정 사유 및 최종 지시 사항을 기록하세요.`, `최종 결재권자 의결에 따라 [${nextStatus}] 조치함`);
+            if(auditorComment === null) return; 
+
+            app.status = nextStatus;
+            if(!app.ratings) app.ratings = [];
+            app.ratings.push({ author: `${currentUser.name} (${currentUser.role}) [결정권자]`, role: currentUser.role, text: `[의결 상태 변경 -> ${nextStatus}] 사유: ${auditorComment.trim()}`, date: '2026-06-29' });
+
+            if(nextStatus === '최종 승인') {
+                const nextClubId = clubDB.length > 0 ? Math.max(...clubDB.map(c => c.id)) + 1 : 1;
+                clubDB.push({ id: nextClubId, category: app.dept, name: app.name, leader: app.leaderName, phone: app.leaderPhone, room: '학생회관 배정대기', members: 20, filename: app.filename });
+                alert(`🎊 [행정 의결 완료] 신규 동아리 [${app.name}] 개설이 최종 승인되었습니다.`);
+            } else {
+                alert(`🗳️ 처리 상태가 [${nextStatus}]로 변경 처리되었습니다.`);
+            }
+            renderApprovalDashboard();
+        }
+
+        // [개선 세션] 동아리 신청 건 상세 및 누적 평정 기록 보기 모달 개방 (분과장 본인 삭제 기능 인젝션)
+        function openAppViewer(appId) {
+            const app = approvalDB.find(a => a.id === appId);
+            if(!app) return;
+
+            document.getElementById('view-app-title').innerText = app.name;
+            document.getElementById('view-app-dept').innerText = app.dept;
+            document.getElementById('view-app-leader').innerText = `${app.leaderName} (${app.leaderId})`;
+            document.getElementById('view-app-phone').innerText = app.leaderPhone;
+            document.getElementById('view-app-desc').innerText = app.desc;
+            
+            const fileEl = document.getElementById('view-app-file');
+            fileEl.innerText = app.filename;
+            fileEl.onclick = () => triggerDownloadModal(app.filename);
+
+            const timelineContainer = document.getElementById('view-app-rating-timeline');
+            if(!app.ratings || app.ratings.length === 0) {
+                timelineContainer.innerHTML = `<p class="text-slate-400 italic py-2 text-center">기록된 평정 심의 내역이 없습니다.</p>`;
+            } else {
+                timelineContainer.innerHTML = app.ratings.map(r => `
+                    <div class="py-2 first:pt-0 last:pb-0 text-[11px]">
+                        <div class="flex justify-between text-slate-500 font-bold mb-0.5">
+                            <span class="text-blue-900"><i class="fa-solid fa-user-tag text-slate-400 mr-1"></i>${r.author}</span>
+                            <span class="font-mono text-[10px]">${r.date}</span>
+                        </div>
+                        <div class="bg-white border p-2 rounded text-slate-700 leading-relaxed font-sans">${r.text}</div>
+                    </div>
+                `).join('');
+            }
+
+            // 요구사항 완벽 반영: 로그인한 사용자가 분과장이고, 해당 개설 안건의 최초 기안자(uid 매칭)일 때 모달 내부에 삭제 단추 동적 노출 조치
+            const actionZone = document.getElementById('app-viewer-owner-action-zone');
+            if(currentUser && currentUser.role === '분과장' && app.uid === currentUser.id) {
+                actionZone.innerHTML = `
+                    <button onclick="triggerAppDeleteRequest(${app.id})" class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-3 py-1.5 rounded text-xs shadow transition flex items-center">
+                        <i class="fa-solid fa-trash-can mr-1.5"></i> 신청 취소 (삭제)
+                    </button>
+                `;
+            } else {
+                actionZone.innerHTML = '';
+            }
+
+            document.getElementById('app-viewer-modal').classList.remove('hidden');
+        }
+        function closeAppViewer() { document.getElementById('app-viewer-modal').classList.add('hidden'); }
+
+        // [신규 기능] 기안 전산 취소 확인창 트리거
+        function triggerAppDeleteRequest(appId) {
+            pendingDeleteAppId = appId;
+            document.getElementById('app-delete-confirm-modal').classList.remove('hidden');
+            document.getElementById('btn-app-delete-allow').onclick = executeActualAppDelete;
+        }
+        function closeDeleteConfirmModal() {
+            document.getElementById('app-delete-confirm-modal').classList.add('hidden');
+            pendingDeleteAppId = null;
+        }
+        // 확약 모달에서 "승인"을 눌렀을 때 실행되는 실제 삭제 로직
+        function executeActualAppDelete() {
+            if(!pendingDeleteAppId) return;
+            approvalDB = approvalDB.filter(a => a.id !== pendingDeleteAppId);
+            alert('🗑️ 해당 신규 동아리 신청서가 대장에서 취소 파기되었으며 전산 심의가 영구 중단되었습니다.');
+            closeDeleteConfirmModal();
+            closeAppViewer();
+            renderApprovalDashboard();
+        }
+
+        // 고정 구역: 시스템 권한 설정 내부 인프라 엔진 (100% 완전 불변 보존 고도화)
+        function renderAdminSetting() {
+            document.getElementById('tbl-user-master-body').innerHTML = userDB.map(u => `
+                <tr>
+                    <td class="p-2 border">${u.id}</td><td class="p-2 border font-bold">${u.name}</td><td class="p-2 border">${u.dept}</td><td class="p-2 border">${u.role}</td><td class="p-2 border">${u.roleEtc || '-'}</td>
+                    <td class="p-2 border text-center space-x-1">
+                        <button class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-1.5 py-0.5 rounded text-[11px]" onclick="editUser('${u.id}')">수정</button>
+                        <button class="bg-rose-500 text-white px-1.5 py-0.5 rounded text-[11px]" onclick="deleteUser('${u.id}')">삭제</button>
+                    </td>
+                </tr>
+            `).join('');
+
+            const docActionsList = ['접속', '작성', '열람', '다운로드'];
+
+            document.getElementById('matrix-dept-box').innerHTML = Object.keys(deptPermissions).map(dept => {
+                const currentMenus = deptPermissions[dept];
+                const currentActions = deptDocActions[dept] || [];
+                const menuCheckboxes = allMenuList.map(menu => {
+                    const isChecked = currentMenus.includes(menu) ? 'checked' : '';
+                    return `<label class="flex items-center space-x-1 bg-white p-1 px-2 border rounded cursor-pointer hover:bg-slate-100"><input type="checkbox" data-matrix-dept="${dept}" value="${menu}" ${isChecked} class="rounded text-blue-600 focus:ring-blue-500"><span class="text-[11px]">${menu}</span></label>`;
+                }).join('');
+                const actionCheckboxes = docActionsList.map(act => {
+                    const isActChecked = currentActions.includes(act) ? 'checked' : '';
+                    return `<label class="flex items-center space-x-1 bg-cyan-50 p-1 px-2 border border-cyan-300 rounded cursor-pointer hover:bg-cyan-100"><input type="checkbox" data-action-dept="${dept}" value="${act}" ${isActChecked} class="rounded text-cyan-600 focus:ring-cyan-500"><span class="text-[11px] font-bold text-cyan-800">${act}</span></label>`;
+                }).join('');
+                return `
+                    <div class="p-3 border rounded bg-slate-50 shadow-sm space-y-2">
+                        <p class="font-bold text-slate-800 border-b pb-1"><i class="fa-solid fa-folder-tree mr-1 text-blue-600"></i> ${dept}</p>
+                        <div class="grid grid-cols-2 gap-1.5">${menuCheckboxes}</div>
+                        <div class="grid grid-cols-2 gap-1.5">${actionCheckboxes}</div>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('matrix-role-box').innerHTML = Object.keys(rolePermissions).map(role => {
+                const currentMenus = rolePermissions[role];
+                const currentActions = roleDocActions[role] || [];
+                const menuCheckboxes = allMenuList.map(menu => {
+                    const isChecked = currentMenus.includes(menu) ? 'checked' : '';
+                    return `<label class="flex items-center space-x-1 bg-white p-1 px-2 border rounded cursor-pointer hover:bg-slate-100"><input type="checkbox" data-matrix-role="${role}" value="${menu}" ${isChecked} class="rounded text-emerald-600 focus:ring-emerald-500"><span class="text-[11px]">${menu}</span></label>`;
+                }).join('');
+                const actionCheckboxes = docActionsList.map(act => {
+                    const isActChecked = currentActions.includes(act) ? 'checked' : '';
+                    return `<label class="flex items-center space-x-1 bg-amber-50 p-1 px-2 border border-amber-300 rounded cursor-pointer hover:bg-amber-100"><input type="checkbox" data-action-role="${role}" value="${act}" ${isActChecked} class="rounded text-amber-600 focus:ring-amber-500"><span class="text-[11px] font-bold text-amber-800">${act}</span></label>`;
+                }).join('');
+                return `
+                    <div class="p-3 border rounded bg-slate-50 shadow-sm space-y-2">
+                        <p class="font-bold text-slate-800 border-b pb-1"><i class="fa-solid fa-user-shield mr-1 text-emerald-600"></i> ${role}</p>
+                        <div class="grid grid-cols-2 gap-1.5">${menuCheckboxes}</div>
+                        <div class="grid grid-cols-2 gap-1.5">${actionCheckboxes}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function savePermissionMatrix() {
+            let newDeptPermissions = {}; Object.keys(deptPermissions).forEach(dept => { newDeptPermissions[dept] = []; });
+            document.querySelectorAll('input[data-matrix-dept]').forEach(input => { if(input.checked) { newDeptPermissions[input.getAttribute('data-matrix-dept')].push(input.value); } });
+            deptPermissions = newDeptPermissions;
+
+            let newDeptDocActions = {}; Object.keys(deptDocActions).forEach(dept => { newDeptDocActions[dept] = []; });
+            document.querySelectorAll('input[data-action-dept]').forEach(input => { if(input.checked) { newDeptDocActions[input.getAttribute('data-action-dept')].push(input.value); } });
+            deptDocActions = newDeptDocActions;
+
+            let newRolePermissions = {}; Object.keys(rolePermissions).forEach(role => { newRolePermissions[role] = []; });
+            document.querySelectorAll('input[data-matrix-role]').forEach(input => { if(input.checked) { newRolePermissions[input.getAttribute('data-matrix-role')].push(input.value); } });
+            rolePermissions = newRolePermissions;
+
+            let newRoleDocActions = {}; Object.keys(roleDocActions).forEach(role => { newRoleDocActions[role] = []; });
+            document.querySelectorAll('input[data-action-role]').forEach(input => { if(input.checked) { newRoleDocActions[input.getAttribute('data-action-role')].push(input.value); } });
+            roleDocActions = newRoleDocActions;
+
+            applyMenuPermissions(); applyDocWriteUIVisibility();
+            alert('⚙️ [매트릭스 동기화 성공] 권한 설정 정보가 안전하게 실시간 세션에 커밋 완료되었습니다.');
+        }
+
+        function editUser(userId) {
+            const targetUser = userDB.find(u => u.id === userId); if (!targetUser) return;
+            const newPassword = prompt(`🔑 [${targetUser.name}] 계정의 변경할 새로운 비밀번호를 입력해주세요.`);
+            if (newPassword === null) return; if (newPassword.trim() === "") { alert('⚠️ 비밀번호는 공백으로 설정할 수 없습니다.'); return; }
+            targetUser.pw = newPassword.trim(); alert(`🎉 비밀번호가 변경되었습니다.`);
+        }
+
+        function deleteUser(userId) {
+            if(userId === 'admin') { alert('🛡️ 최고 관리자는 삭제할 수 없습니다.'); return; }
+            if(confirm(userId + ' 사용자를 삭제하시겠습니까?')) { userDB = userDB.filter(u => u.id !== userId); renderAdminSetting(); }
+        }
+    </script>
+</body>
+</html>
