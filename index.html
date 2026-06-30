@@ -1095,7 +1095,7 @@
   const auth = getAuth(app);
   const db = getFirestore(app);
 
-  // 4. [진짜 로그인 기능] 버튼을 누르면 파이어베이스 서버로 확인 요청을 보내요!
+ // 4. [진짜 로그인 기능] 버튼을 누르면 파이어베이스 서버로 확인 요청을 보내요!
   window.handleLogin = function() {
     // 입력창에 적은 이메일과 비밀번호 가져오기
     const email = document.getElementById('login-id').value.trim();
@@ -1109,23 +1109,56 @@
     // 파이어베이스 자물쇠에게 "이 사람 들어와도 돼?" 물어보기
     signInWithEmailAndPassword(auth, email, pw)
       .then((userCredential) => {
-        // 로그인 성공했을 때!
         const user = userCredential.user;
         alert('🎉 파이어베이스 인증 성공! 시스템에 접속합니다.');
         
-        // 대시보드 화면 열어주기
+        // --- 👑 [여기서부터 마스터 권한 마법 작동!] ---
+        // 만약 로그인한 사람이 지정된 admin 이메일이라면?
+        if (user.email === "admin@gmail.com") { // 👈 여기에 파이어베이스에 등록한 admin 이메일을 적어주세요!
+          currentUser = {
+            id: 'admin',
+            name: '관리자',
+            dept: '운영진',
+            role: '회장',
+            isMaster: true // ⭐ 모든 권한을 다 켜주는 마법 카드!
+          };
+        } else {
+          // 일반 사용자가 로그인했을 때의 기본 세팅
+          currentUser = {
+            id: user.uid,
+            name: user.email.split('@')[0], // 이메일 앞글자를 이름으로 쓰기
+            dept: '일반부서',
+            role: '부원',
+            isMaster: false
+          };
+        }
+        // --- 👑 [마스터 권한 마법 끝!] ---
+
+        // 화면 열어주고 화면에 내 이름 띄우기
         document.getElementById('auth-container').classList.add('hidden');
         document.getElementById('main-dashboard-layout').classList.remove('hidden');
-        document.getElementById('user-display-name').innerText = user.email.split('@')[0] + '님';
+        document.getElementById('user-display-name').innerText = currentUser.name + '님';
+        document.getElementById('user-badge').innerText = currentUser.role;
+
+        // 마스터 권한에 맞춰서 안 보이던 관리자 메뉴들 싹 다 보여주기!
+        if(currentUser.isMaster || currentUser.dept === '운영진') {
+          document.getElementById('admin-indicator').classList.remove('hidden');
+        }
+        
+        const adminMenuEl = document.getElementById('nav-admin-setting');
+        if(currentUser.id === 'admin') adminMenuEl.classList.remove('hidden');
+
+        document.getElementById('doc-input-author').value = currentUser.name;
+        
+        applyDocWriteUIVisibility();
+        applyMenuPermissions();
         navigateTo('dashboard');
       })
       .catch((error) => {
-        // 로그인 실패했을 때 (계정이 없거나 비밀번호가 틀림)
         console.error(error);
         alert('⚠️ 로그인 실패: 이메일이나 비밀번호를 확인해주세요!');
       });
   }
-
   // 5. [진짜 비밀번호 재설정 메일 보내기 기능]
   window.requestPasswordReset = function() {
     const email = document.getElementById('login-id').value.trim();
